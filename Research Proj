@@ -1,0 +1,741 @@
+from google.colab import drive
+drive.mount('/content/drive')
+
+import sys
+sys.path.append('/content/drive/MyDrive')
+
+import raw_utils as util
+import os
+
+import pandas as pd
+import numpy as np
+
+import random
+
+# dataset path
+path = "/content/drive/MyDrive/datasets"
+
+# read dataset
+phishing = util.read_dataset(path, exceptions =[], text_only=True)
+
+# set pandas option to display all columns and rows
+pd.set_option('display.max_colwidth', None)
+pd.set_option('display.max_columns', None)
+
+phishing.info()
+
+# Sample of a phishing body
+phishing.iloc[12]
+
+# As it can be seen, the dataset contains some duplicates
+phishing.drop_duplicates()
+
+#Adding legitimate emails
+import pandas as pd
+
+df = pd.read_csv("/content/drive/MyDrive/emails.csv")
+
+# Sample opf legit message
+df.head().iloc[3]['message']
+
+# Taking 3000 random mails from the dataset
+df_new = df.sample(n=3000, random_state = 100).drop("file", axis = 1)
+
+# Creating the label of 1 for the legit mails
+df_new['label'] = 1
+
+# droping duplicates from the pishing emails
+phishing.drop_duplicates(inplace = True)
+
+# column rename
+phishing.rename(columns = {'body':'message'}, inplace = True)
+
+# Creating the label of 0 for the phishing emails
+phishing['label'] = 0
+
+# Concatenating the two dataframes in a single dataframe
+final_csv = pd.concat([phishing, df_new])
+
+final_csv.to_csv("text_message.csv", index = False)
+
+#adding more pishing samples from https://github.com/JakubOleksiak/PhishingEmailsDataset
+
+#parsing the dataset
+
+import os
+import glob
+import json
+
+# storing in dirs all subfolders paths
+dirs = []
+#rootdir = os.getcwd() + "\\PhishingEmailsDataset-main"
+rootdir = '/content/drive/MyDrive/PhishingEmailsDataset-main/'
+for file in os.listdir(rootdir):
+    d = os.path.join(rootdir, file)
+    if os.path.isdir(d):
+    
+    
+ # storing in final_folders all folders paths
+final_folders = []
+for folder in dirs:
+    for file in os.listdir(folder):
+        d = os.path.join(folder, file)
+        if os.path.isdir(d):
+            final_folders.append(d)
+            
+  # storing in body all body emails
+body = []
+for folder in final_folders:
+    files = glob.glob(folder + "/*.json")
+
+
+    for file in files:
+        f = open(file)
+
+
+        data = json.load(f)
+        if data['header']['language'] == "English":
+            body.append(data['body'][0]['content'])
+
+        f.close()
+        
+        
+    # sample of a body mail
+body[803]    
+     
+        dirs.append(d)
+
+
+import pandas as pd
+
+
+# Creating the new dataframe 
+df = pd.DataFrame(body, columns=['message'])
+  
+# print dataframe.
+df
+
+# Assigning label 0
+df['label'] = 0
+
+old_df = pd.read_csv("text_message.csv")
+
+# concatenating the old and new dataframe
+result = pd.concat([df, old_df])
+
+#datacleaning
+
+
+# Droping duplicates and Nan values
+# There were 9000+ rows in the the dataframe, after the cleaning, only 2000+ remains 
+result = result.drop_duplicates()
+result=result.dropna()
+
+import re
+
+
+def clean_text(text):
+    # Removing the '\n' values 
+    text = text.replace('\n', ' ')
+    # Removing the links
+    text = re.sub(r'http\S+', '', text, flags=re.MULTILINE)
+    # Removing the html text
+    text = re.sub("[<].*?[>]", "", text)
+    # Removing the '\r' values 
+    text = text.replace('\r', ' ')
+      # Removing the '\t' values 
+    text = text.replace('\t', ' ')
+     # Remove new line characters 
+    text = text.replace('\s+', ' ')
+
+    
+    return text
+
+
+# For each message in the dataframe
+for body in range(len(result)):
+    
+    
+    text = result['message'].iloc[body]
+    
+    # Apply the cleaning process
+    text = clean_text(text)
+    
+    # Replace the old value with the new one
+    result['message'].iloc[body] = text
+    
+    
+    # strings to be removed 
+noise = ["Enron","ENRON", "ECT", "HOU","Forwarded by Phillip K Allen",
+        "Content-Type:","text/plain;","charset=us-ascii Content-Transfer-Encoding: 7bit X-From:",
+        "3D"]
+def clean_normal_email(text):
+    for word in noise:
+        if word in text:
+            text = text.replace(word, "")
+    return text
+
+
+## Because the normal emails have a lot of noise, to minimize the noise,
+## I split the text based on some certain strings 
+## that I observed appear just before the actual message, and I take the 
+## just the message
+spl_word = '.nsf'
+spl_word2 = ".pst"
+spl_word3 = ".PST"
+spl_word4 = '(Non-Privileged)'
+spl_word5 = "Subject"
+
+
+# For each legit email
+for body in range(len(result)):
+    if result['label'].iloc[body]== 1:
+        # I extract a certain substring that only contains the message
+        try:
+            result_string = result['message'].iloc[body].split(spl_word)[1]
+            result['message'].iloc[body] = clean_normal_email(result_string[1:])
+        except:
+            try:
+                result_string = result['message'].iloc[body].split(spl_word2)[1]
+                result['message'].iloc[body] = clean_normal_email(result_string[1:])
+
+            except:
+                try:
+                    result_string = result['message'].iloc[body].split(spl_word3)[1]
+                    result['message'].iloc[body] = clean_normal_email(result_string[1:])
+                except:
+                    try:
+                        result_string = result['message'].iloc[body].split(spl_word4)[-1]
+                        result['message'].iloc[body] = clean_normal_email(result_string[1:])
+                    except:
+                        result_string = result['message'].iloc[body].split(spl_word5)[-1]
+                        result['message'].iloc[body] = clean_normal_email(result_string[1:])
+                        
+                        
+       noise = ["monkey","jose monkey", "jose","enron","nbsp","#8230;"]
+
+def clean_text(text):
+    for word in noise:
+        if word in text:
+            text = text.replace(word, "")
+            
+    #Remove emails
+    #text = re.sub(r'[\w\.-]+@[\w\.-]+', '', text)
+    return text
+    
+
+
+# For each message in the dataframe
+for body in range(len(result)):
+    
+    
+    text = result['message'].iloc[body]
+    
+    # Apply the cleaning process
+    text = clean_text(text)
+    
+    # Replace the old value with the new one
+    result['message'].iloc[body] = text
+    
+    # Shuffle the dataframe
+result = result.sample(frac=1)
+
+# Reset index because there were a lot of rows dropped
+result = result.reset_index().drop('index', axis = 1)
+
+# Save the dataframe
+result.to_csv("final_body.csv", index = False)
+
+#Exploratory data analysis
+
+# Visualizing the label distribution
+
+import seaborn as sns
+sns.set()
+
+sns.countplot(x='label', data = result)
+
+# Import the wordcloud library
+from wordcloud import WordCloud
+# Join the different processed titles together.
+long_string = ','.join(list(result[result['label']== 0]['message'].values))
+# Create a WordCloud object
+wordcloud = WordCloud(background_color="white", max_words=5000, contour_width=3, contour_color='steelblue')
+# Generate a word cloud
+wordcloud.generate(long_string)
+# Visualize the word cloud
+wordcloud.to_image()
+
+# Import the wordcloud library
+from wordcloud import WordCloud
+# Join the different processed titles together.
+long_string = ','.join(list(result[result['label']== 1]['message'].values))
+# Create a WordCloud object
+wordcloud = WordCloud(background_color="white", max_words=5000, contour_width=3, contour_color='steelblue')
+# Generate a word cloud
+wordcloud.generate(long_string)
+# Visualize the word cloud
+wordcloud.to_image()
+
+
+X = result['message']
+y = result['label']
+
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+documents = []
+import nltk 
+nltk.download('wordnet')
+from nltk.stem import WordNetLemmatizer
+
+stemmer = WordNetLemmatizer()
+
+
+for sen in range(0, len(X)):
+    # Remove all the special characters
+    document = re.sub(r'\W', ' ', str(X[sen]))
+    
+    # remove all single characters
+    document = re.sub(r'\s+[a-zA-Z]\s+', ' ', document)
+    
+    # Remove single characters from the start
+    document = re.sub(r'\^[a-zA-Z]\s+', ' ', document) 
+    
+    # Substituting multiple spaces with single space
+    document = re.sub(r'\s+', ' ', document, flags=re.I)
+    
+    # Removing prefixed 'b'
+    document = re.sub(r'^b\s+', '', document)
+    
+    # Converting to Lowercase
+    document = document.lower()
+    
+    # Remove new line characters
+    document = [re.sub('\s+', ' ', sent) for sent in document]
+
+   # Remove distracting single quotes
+    data = [re.sub("\'", "", sent) for sent in document]
+
+    #Remove emails
+    document = re.sub(r'[\w\.-]+@[\w\.-]+', '', document)
+
+    
+    #Tokenization
+    document = document.split()
+    
+    import nltk
+    nltk.download('stopwords')
+    
+    from nltk.corpus import stopwords
+    stop_words = stopwords.words('english')
+    stop_words.extend(['from', 'subject', 're', 'edu', 'use'])
+    
+    def remove_stopwords(documents):
+    return [[word for word in simple_preprocess(str(document)) if word not in stop_words] for document in documents]
+
+    data_words = list(sent_to_words(data))
+    
+    # Lemmatization
+    document = [stemmer.lemmatize(word) for word in document]
+    document = ' '.join(document)
+    
+    documents.append(document)
+
+    #Bag of words
+    
+    from sklearn.feature_extraction.text import CountVectorizer
+    vectorizer = CountVectorizer(max_features=1500, min_df=5, max_df=0.7, stop_words=stopwords.words('english'))
+    X = vectorizer.fit_transform(documents).toarray()
+    
+    from sklearn.model_selection import train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+
+#RF
+from sklearn.ensemble import RandomForestClassifier
+
+
+classifier = RandomForestClassifier(n_estimators=1000, random_state=0)
+classifier.fit(X_train, y_train) 
+
+y_pred = classifier.predict(X_test)
+
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
+print(confusion_matrix(y_test,y_pred))
+print(classification_report(y_test,y_pred,digits =4))
+print(accuracy_score(y_test, y_pred)
+
+cf_matrix = confusion_matrix(y_test, y_pred)
+
+group_names = ['True Negative','False Positive','False Negative','True Positive']
+
+group_counts = ["{0:0.0f}".format(value) for value in
+                cf_matrix.flatten()]
+
+group_percentages = ["{0:.2%}".format(value) for value in
+                     cf_matrix.flatten()/np.sum(cf_matrix)]
+
+labels = [f"{v1}\n{v2}\n{v3}" for v1, v2, v3 in
+          zip(group_names,group_counts,group_percentages)]
+
+labels = np.asarray(labels).reshape(2,2)
+
+ax = sns.heatmap(cf_matrix, annot=labels, fmt='', cmap='Blues')
+
+ax.set_title('Confusion Matrix\n\n');
+ax.set_xlabel('\nPredicted Values')
+ax.set_ylabel('Actual Values ');
+
+## Ticket labels - List must be in alphabetical order
+ax.xaxis.set_ticklabels(['False','True'])
+ax.yaxis.set_ticklabels(['False','True'])
+
+## Display the visualization of the Confusion Matrix.
+plt.show()
+
+# Logistic Regression
+from sklearn.linear_model import LogisticRegression
+
+classifier = LogisticRegression(random_state=0).fit(X_train, y_train)
+classifier.fit(X_train, y_train) 
+
+y_pred = classifier.predict(X_test)
+
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
+print(confusion_matrix(y_test,y_pred))
+print(classification_report(y_test,y_pred,digits =4))
+print(accuracy_score(y_test, y_pred))
+
+cf_matrix = confusion_matrix(y_test, y_pred)
+
+group_names = ['True Negative','False Positive','False Negative','True Positive']
+
+group_counts = ["{0:0.0f}".format(value) for value in
+                cf_matrix.flatten()]
+
+group_percentages = ["{0:.2%}".format(value) for value in
+                     cf_matrix.flatten()/np.sum(cf_matrix)]
+
+labels = [f"{v1}\n{v2}\n{v3}" for v1, v2, v3 in
+          zip(group_names,group_counts,group_percentages)]
+
+labels = np.asarray(labels).reshape(2,2)
+
+ax = sns.heatmap(cf_matrix, annot=labels, fmt='', cmap='Blues')
+
+ax.set_title('Confusion Matrix\n\n');
+ax.set_xlabel('\nPredicted Values')
+ax.set_ylabel('Actual Values ');
+
+## Ticket labels - List must be in alphabetical order
+ax.xaxis.set_ticklabels(['False','True'])
+ax.yaxis.set_ticklabels(['False','True'])
+
+## Display the visualization of the Confusion Matrix.
+plt.show()
+
+#Decision Tree
+from sklearn.tree import DecisionTreeClassifier
+
+classifier = DecisionTreeClassifier(random_state=0)
+classifier.fit(X_train, y_train) 
+
+y_pred = classifier.predict(X_test)
+
+print(confusion_matrix(y_test,y_pred))
+print(classification_report(y_test,y_pred,digits =4))
+print(accuracy_score(y_test, y_pred))
+
+cf_matrix = confusion_matrix(y_test, y_pred)
+
+group_names = ['True Negative','False Positive','False Negative','True Positive']
+
+group_counts = ["{0:0.0f}".format(value) for value in
+                cf_matrix.flatten()]
+
+group_percentages = ["{0:.2%}".format(value) for value in
+                     cf_matrix.flatten()/np.sum(cf_matrix)]
+
+labels = [f"{v1}\n{v2}\n{v3}" for v1, v2, v3 in
+          zip(group_names,group_counts,group_percentages)]
+
+labels = np.asarray(labels).reshape(2,2)
+
+ax = sns.heatmap(cf_matrix, annot=labels, fmt='', cmap='Blues')
+
+ax.set_title('Confusion Matrix\n\n');
+ax.set_xlabel('\nPredicted Values')
+ax.set_ylabel('Actual Values ');
+
+## Ticket labels - List must be in alphabetical order
+ax.xaxis.set_ticklabels(['False','True'])
+ax.yaxis.set_ticklabels(['False','True'])
+
+## Display the visualization of the Confusion Matrix.
+plt.show()
+
+#KNN
+
+from sklearn.neighbors import KNeighborsClassifier
+classifier = KNeighborsClassifier(n_neighbors=3)
+classifier.fit(X_train, y_train)
+
+y_pred = classifier.predict(X_test)
+
+print(confusion_matrix(y_test,y_pred))
+print(classification_report(y_test,y_pred,digits =4))
+print(accuracy_score(y_test, y_pred))
+
+cf_matrix = confusion_matrix(y_test, y_pred)
+
+group_names = ['True Negative','False Positive','False Negative','True Positive']
+
+group_counts = ["{0:0.0f}".format(value) for value in
+                cf_matrix.flatten()]
+
+group_percentages = ["{0:.2%}".format(value) for value in
+                     cf_matrix.flatten()/np.sum(cf_matrix)]
+
+labels = [f"{v1}\n{v2}\n{v3}" for v1, v2, v3 in
+          zip(group_names,group_counts,group_percentages)]
+
+labels = np.asarray(labels).reshape(2,2)
+
+ax = sns.heatmap(cf_matrix, annot=labels, fmt='', cmap='Blues')
+
+ax.set_title('Confusion Matrix\n\n');
+ax.set_xlabel('\nPredicted Values')
+ax.set_ylabel('Actual Values ');
+
+## Ticket labels - List must be in alphabetical order
+ax.xaxis.set_ticklabels(['False','True'])
+ax.yaxis.set_ticklabels(['False','True'])
+
+## Display the visualization of the Confusion Matrix.
+plt.show()
+
+#Naive Bayes
+
+from sklearn.naive_bayes import GaussianNB
+
+classifier = GaussianNB()
+classifier.fit(X_train, y_train)
+
+y_pred = classifier.predict(X_test)
+
+print(confusion_matrix(y_test,y_pred))
+print(classification_report(y_test,y_pred,digits =4))
+print(accuracy_score(y_test, y_pred))
+
+cf_matrix = confusion_matrix(y_test, y_pred)
+
+group_names = ['True Negative','False Positive','False Negative','True Positive']
+
+group_counts = ["{0:0.0f}".format(value) for value in
+                cf_matrix.flatten()]
+
+group_percentages = ["{0:.2%}".format(value) for value in
+                     cf_matrix.flatten()/np.sum(cf_matrix)]
+
+labels = [f"{v1}\n{v2}\n{v3}" for v1, v2, v3 in
+          zip(group_names,group_counts,group_percentages)]
+
+labels = np.asarray(labels).reshape(2,2)
+
+ax = sns.heatmap(cf_matrix, annot=labels, fmt='', cmap='Blues')
+
+ax.set_title('Confusion Matrix\n\n');
+ax.set_xlabel('\nPredicted Values')
+ax.set_ylabel('Actual Values ');
+
+## Ticket labels - List must be in alphabetical order
+ax.xaxis.set_ticklabels(['False','True'])
+ax.yaxis.set_ticklabels(['False','True'])
+
+## Display the visualization of the Confusion Matrix.
+plt.show()
+
+#SVM
+
+from sklearn.svm import SVC
+
+classifier = SVC(kernel='linear')
+classifier.fit(X_train, y_train)
+
+y_pred = classifier.predict(X_test)
+
+print(confusion_matrix(y_test,y_pred))
+print(classification_report(y_test,y_pred,digits =4))
+print(accuracy_score(y_test, y_pred))
+
+#Hashing Vectorizer 
+
+X = result['message']
+y = result['label']
+
+from sklearn.feature_extraction.text import HashingVectorizer
+vectorizer = HashingVectorizer(n_features= 1024)
+X = vectorizer.fit_transform(X).toarray()
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+#THE CLASSIFIERS ARE THE SAME, SO I WON'T UPLOAD THAT CODE AGAIN
+
+#TF-IDF
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+tfidfconverter = TfidfVectorizer(max_features=1500, min_df=5, max_df=0.7, stop_words=stopwords.words('english'))
+X = tfidfconverter.fit_transform(documents).toarray()
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+
+#WORD2VEC
+
+import gensim
+
+# Clean data using the built in cleaner in gensim
+result['text_clean'] = result['message'].apply(lambda x: gensim.utils.simple_preprocess(x))
+
+# Split data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split (result['text_clean'], result['label'] , test_size=0.2)
+
+# Train the word2vec model
+w2v_model = gensim.models.Word2Vec(X_train,
+                                   vector_size=100,
+                                   window=5,
+                                   min_count=2)
+                                   
+  w2v_model.wv.index_to_key
+  # Find the most similar words to "email" based on word vectors from our trained model
+w2v_model.wv.most_similar('email')
+
+words = set(w2v_model.wv.index_to_key )
+X_train_vect = np.array([np.array([w2v_model.wv[i] for i in ls if i in words])
+                         for ls in X_train])
+X_test_vect = np.array([np.array([w2v_model.wv[i] for i in ls if i in words])
+                         for ls in X_test])
+                         
+   # Why is the length of the sentence different than the length of the sentence vector?
+for i, v in enumerate(X_train_vect):
+    print(len(X_train.iloc[i]), len(v))
+    
+   # Compute sentence vectors by averaging the word vectors for the words contained in the sentence
+X_train_vect_avg = []
+for v in X_train_vect:
+    if v.size:
+        X_train_vect_avg.append(v.mean(axis=0))
+    else:
+        X_train_vect_avg.append(np.zeros(100, dtype=float))
+        
+X_test_vect_avg = []
+for v in X_test_vect:
+    if v.size:
+        X_test_vect_avg.append(v.mean(axis=0))
+    else:
+        X_test_vect_avg.append(np.zeros(100, dtype=float))
+        
+     # Are our sentence vector lengths consistent?
+for i, v in enumerate(X_train_vect_avg):
+    print(len(X_train.iloc[i]), len(v))
+    
+    #GLOVE
+    
+    pip install Keras-Preprocessing
+    from numpy import array
+from numpy import asarray
+from numpy import zeros
+from keras_preprocessing.text import Tokenizer
+from keras_preprocessing.sequence import pad_sequences
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import Flatten
+from keras.layers import Embedding
+
+# prepare tokenizer
+t = Tokenizer()
+
+t.fit_on_texts(result['message'])
+
+vocab_size = len(t.word_index) + 1
+# integer encode the documents
+encoded_docs = t.texts_to_sequences(result['message'])
+
+encoded_docs[0]
+
+# pad documents to a max length of 4 words
+max_length = 4
+padded_docs = pad_sequences(encoded_docs, maxlen=max_length, padding='post')
+print(padded_docs)
+
+# load the whole embedding into memory
+embeddings_index = dict()
+f = open('/content/drive/MyDrive/glove.6B.100d.txt', encoding="utf8")
+for line in f:
+    values = line.split()
+    word = values[0]
+    coefs = asarray(values[1:], dtype='float32')
+    embeddings_index[word] = coefs
+f.close()
+print('Loaded %s word vectors.' % len(embeddings_index))
+
+# create a weight matrix for words in training docs
+embedding_matrix = zeros((vocab_size, 100))
+for word, i in t.word_index.items():
+    embedding_vector = embeddings_index.get(word)
+    if embedding_vector is not None:
+        embedding_matrix[i] = embedding_vector
+        
+ # define model
+model = Sequential()
+e = Embedding(vocab_size, 100, weights=[embedding_matrix], input_length=4, trainable=False)
+model.add(e)
+model.add(Flatten())
+model.add(Dense(1, activation='sigmoid'))
+# compile the model
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+# summarize the model
+print(model.summary())
+
+X_train, X_test, y_train, y_test = train_test_split (padded_docs, result['label'] , test_size=0.2)
+
+# fit the model
+model.fit(X_train, y_train, epochs=50, verbose=0)
+# evaluate the model
+loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
+print('Accuracy: %f' % (accuracy*100))
+
+y_pred = model.predict(X_test)
+
+y_pred[y_pred >= 0.5] = 1
+
+y_pred[y_pred < 0.5] = 0
+
+print(confusion_matrix(y_test,y_pred))
+print(classification_report(y_test,y_pred))
+print(accuracy_score(y_test, y_pred))
+
+
+
+    
+    
+    
+  
+
+
+
+
+
+
+
+
+
+
+    
+    
+
