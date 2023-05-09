@@ -480,7 +480,7 @@ plt.show()
 #KNN
 
 from sklearn.neighbors import KNeighborsClassifier
-classifier = KNeighborsClassifier(n_neighbors=3)
+classifier = KNeighborsClassifier(n_neighbors=3, random_state=0)
 classifier.fit(X_train, y_train)
 
 y_pred = classifier.predict(X_test)
@@ -522,7 +522,7 @@ plt.show()
 from sklearn.naive_bayes import GaussianNB
 
 classifier = GaussianNB()
-classifier.fit(X_train, y_train)
+classifier.fit(X_train, y_train, random_state=0)
 
 y_pred = classifier.predict(X_test)
 
